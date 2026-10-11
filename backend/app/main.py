@@ -278,8 +278,8 @@ def update_section_capacity(
     section_id: str,
     payload: CapacityUpdate,
 ) -> dict[str, object]:
-    check_sql = """
-        SELECT class_id, capacity, enrolled
+    summary_sql = """
+        SELECT class_id, course_code, capacity, enrolled, remaining
         FROM v_section_summary
         WHERE class_id = :section_id
     """
@@ -292,7 +292,7 @@ def update_section_capacity(
 
     with engine.begin() as connection:
         section = connection.execute(
-            text(check_sql),
+            text(summary_sql),
             {"section_id": sec_id},
         ).mappings().first()
 
@@ -313,11 +313,12 @@ def update_section_capacity(
             {"capacity": payload.capacity, "section_id": sec_id},
         )
 
-    return {
-        "message": "Cap nhat suc chua thanh cong",
-        "class_id": sec_id,
-        "capacity": payload.capacity,
-    }
+        updated_section = connection.execute(
+            text(summary_sql),
+            {"section_id": sec_id},
+        ).mappings().first()
+
+    return dict(updated_section)
 @app.get("/courses")
 def list_courses(
     q: str | None = Query(default=None, min_length=1),
