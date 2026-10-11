@@ -31,35 +31,35 @@ def health_check() -> dict[str, str]:
         ) from exc
     return {"status": "ok", "database": "connected"}
 
-@app.get("/courses")
-def list_courses(
-    q: str | None = Query(default=None, min_length=1),
-) -> list[dict[str, object]]:
-    sql = """
-        SELECT code, name, credits
-        FROM courses
-    """
-    parameters: dict[str, object] = {}
+# @app.get("/courses")
+# def list_courses(
+#     q: str | None = Query(default=None, min_length=1),
+# ) -> list[dict[str, object]]:
+#     sql = """
+#         SELECT code, name, credits
+#         FROM courses
+#     """
+#     parameters: dict[str, object] = {}
 
-    if q is not None:
-        keyword = q.strip().lower()
-        if not keyword:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Tu khoa tim kiem khong duoc rong",
-            )
-        sql += """
-            WHERE LOWER(code) LIKE :keyword
-            OR LOWER(name) LIKE :keyword
-        """
-        parameters["keyword"] = f"%{keyword}%"
+#     if q is not None:
+#         keyword = q.strip().lower()
+#         if not keyword:
+#             raise HTTPException(
+#                 status_code=status.HTTP_400_BAD_REQUEST,
+#                 detail="Tu khoa tim kiem khong duoc rong",
+#             )
+#         sql += """
+#             WHERE LOWER(code) LIKE :keyword
+#             OR LOWER(name) LIKE :keyword
+#         """
+#         parameters["keyword"] = f"%{keyword}%"
 
-    sql += " ORDER BY code"
+#     sql += " ORDER BY code"
 
-    with engine.connect() as connection:
-        rows = connection.execute(text(sql), parameters).mappings().all()
+#     with engine.connect() as connection:
+#         rows = connection.execute(text(sql), parameters).mappings().all()
 
-    return [dict(row) for row in rows]
+#     return [dict(row) for row in rows]
 
 
 @app.get("/courses/{course_code}")
@@ -227,6 +227,7 @@ def delete_enrollment(student_id: str, class_section_id: str) -> Response:
     )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
+## Bai 1
 @app.get("/lecturers")
 def list_lecturers() -> list[dict[str, object]]:
     sql = """
@@ -239,6 +240,7 @@ def list_lecturers() -> list[dict[str, object]]:
 
     return [dict(row) for row in rows]
 
+## Bai 2
 @app.get("/sections/{section_id}")
 def get_section_detail(section_id: str) -> dict[str, object]:
     sql = """
@@ -271,6 +273,7 @@ def get_section_detail(section_id: str) -> dict[str, object]:
 
     return dict(row)
 
+## Bai 3
 from .schemas import CapacityUpdate, EnrollmentCreate
 
 @app.patch("/sections/{section_id}/capacity")
@@ -319,6 +322,8 @@ def update_section_capacity(
         ).mappings().first()
 
     return dict(updated_section)
+# Bai 4
+
 @app.get("/courses")
 def list_courses(
     q: str | None = Query(default=None, min_length=1),
