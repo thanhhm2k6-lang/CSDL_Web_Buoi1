@@ -44,8 +44,6 @@ WITH section_counts AS (
     LEFT JOIN enrollments AS e ON e.class_section_id = cs.id
     GROUP BY cs.id, cs.capacity
 )
-
-
 SELECT class_id, capacity, enrolled, capacity - enrolled AS remaining
 FROM section_counts
 WHERE enrolled < capacity
