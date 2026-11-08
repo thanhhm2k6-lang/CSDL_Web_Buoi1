@@ -1,4 +1,5 @@
 from __future__ import annotations
+from fastapi.middleware.cors import CORSMiddleware
 import logging
 from multiprocessing.dummy import connection
 from unittest import result
@@ -12,6 +13,15 @@ app = FastAPI(
     title="CourseHub API",
     version="0.3.0",
     description="API thuc hanh Buoi 3 - Co so du lieu Web va he thong thong tin",
+)
+
+# Buổi 5: chỉ cho phép frontend local gọi API qua trình duyệt.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
+    allow_headers=["Content-Type"],
 )
 
 @app.get("/")
@@ -404,7 +414,7 @@ def list_courses(
     return [dict(row) for row in rows]
 
 
-# Tuần 5
+# Tuần 4
 
 # ==========================================
 # Bài 1: API đọc lịch sử đăng ký học phần
