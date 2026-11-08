@@ -90,18 +90,61 @@ def get_course(course_code: str) -> dict[str, object]:
 
 @app.get("/sections")
 def list_sections(
-    available_only: bool = False,
+    q: str | None = Query(
+        default=None,
+        description="Từ khóa tìm kiếm theo mã lớp, mã học phần hoặc tên học phần (ILIKE)"
+    ),
+    course_code: str | None = Query(
+        default=None,
+        description="Lọc chính xác theo mã học phần (ví dụ: INT2204)"
+    ),
+    available_only: bool = Query(
+        default=False,
+        description="Chỉ lấy các lớp học phần còn chỗ (remaining > 0)"
+    ),
+    skip: int = Query(
+        default=0,
+        ge=0,
+        description="Số bản ghi bỏ qua (OFFSET)"
+    ),
+    limit: int = Query(
+        default=20,
+        ge=1,
+        le=50,
+        description="Kích thước trang (LIMIT), tối đa 50 bản ghi"
+    ),
 ) -> list[dict[str, object]]:
-    sql = """
-    SELECT class_id, course_code, capacity, enrolled, remaining
-    FROM v_section_summary
     """
-    if available_only:
-        sql += " WHERE remaining > 0"
+    Tìm kiếm và phân trang danh sách lớp học phần tại CSDL (Database Search & Pagination).
+    - Thứ tự sắp xếp ổn định: ORDER BY v.class_id ASC (Primary Key).
+    """
+    sql = """
+    SELECT v.class_id, v.course_code, c.name AS course_name, v.capacity, v.enrolled, v.remaining
+    FROM v_section_summary AS v
+    JOIN courses AS c ON c.code = v.course_code
+    WHERE 1 = 1
+    """
+    params: dict[str, object] = {
+        "skip": skip,
+        "limit": limit,
+    }
 
-    sql += " ORDER BY class_id"
+    if available_only:
+        sql += " AND v.remaining > 0"
+
+    if course_code:
+        sql += " AND v.course_code = :course_code"
+        params["course_code"] = course_code.strip().upper()
+
+    if q:
+        sql += " AND (v.class_id ILIKE :q OR v.course_code ILIKE :q OR c.name ILIKE :q)"
+        params["q"] = f"%{q.strip()}%"
+
+    # Thứ tự sắp xếp ổn định bằng Khóa chính class_id kết hợp OFFSET và LIMIT
+    sql += " ORDER BY v.class_id ASC OFFSET :skip LIMIT :limit"
+
     with engine.connect() as connection:
-        rows = connection.execute(text(sql)).mappings().all()
+        rows = connection.execute(text(sql), params).mappings().all()
 
     return [dict(row) for row in rows]
 

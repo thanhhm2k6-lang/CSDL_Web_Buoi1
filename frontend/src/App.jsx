@@ -7,12 +7,14 @@ import EnrollmentList from "./components/EnrollmentList.jsx";
 import EventHistory from "./components/EventHistory.jsx";
 
 const HISTORY_PAGE_SIZE = 5;
+const SECTION_PAGE_SIZE = 5;
 
 export default function App() {
   const [draftId, setDraftId] = useState("22000004");
   const [studentId, setStudentId] = useState("22000004");
   const [courses, setCourses] = useState([]);
   const [sections, setSections] = useState([]);
+  const [sectionPage, setSectionPage] = useState(0);
   const [enrollments, setEnrollments] = useState([]);
   const [events, setEvents] = useState([]);
   const [historyPage, setHistoryPage] = useState(0);
@@ -33,9 +35,16 @@ export default function App() {
       setLoading(true);
       setError("");
       try {
+        const queryParams = new URLSearchParams();
+        if (search.trim()) queryParams.set("q", search.trim());
+        if (selectedCourse) queryParams.set("course_code", selectedCourse);
+        if (onlyAvailable) queryParams.set("available_only", "true");
+        queryParams.set("skip", String(sectionPage * SECTION_PAGE_SIZE));
+        queryParams.set("limit", String(SECTION_PAGE_SIZE));
+
         const [courseData, sectionData, enrollmentData] = await Promise.all([
           api("/courses", options),
-          api("/sections", options),
+          api(`/sections?${queryParams.toString()}`, options),
           api(`/students/${encodeURIComponent(studentId)}/enrollments`, options),
         ]);
         if (controller.signal.aborted) return;
@@ -55,7 +64,7 @@ export default function App() {
 
     loadData();
     return () => controller.abort();
-  }, [studentId, refresh]);
+  }, [studentId, search, selectedCourse, onlyAvailable, sectionPage, refresh]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -93,6 +102,7 @@ export default function App() {
     setLoading(true);
     setStudentId(nextId);
     setHistoryPage(0);
+    setSectionPage(0);
     setRefresh((value) => value + 1);
   }
 
@@ -130,25 +140,16 @@ export default function App() {
     }
   }
 
-  const keyword = search.trim().toLowerCase();
-  const rows = sections
-    .map((section) => ({
-      ...section,
-      course_name:
-        courses.find((course) => course.code === section.course_code)?.name ??
-        section.course_code,
-      registered: enrollments.some(
-        (item) => item.class_section_id === section.class_id,
-      ),
-    }))
-    .filter(
-      (row) =>
-        `${row.class_id} ${row.course_code} ${row.course_name}`
-          .toLowerCase()
-          .includes(keyword) &&
-        (!onlyAvailable || row.remaining > 0) &&
-        (!selectedCourse || row.course_code === selectedCourse),
-    );
+  const rows = sections.map((section) => ({
+    ...section,
+    course_name:
+      section.course_name ??
+      courses.find((course) => course.code === section.course_code)?.name ??
+      section.course_code,
+    registered: enrollments.some(
+      (item) => item.class_section_id === section.class_id,
+    ),
+  }));
 
   const disabled = loading || busy || Boolean(error);
 
@@ -171,6 +172,7 @@ export default function App() {
         onSubmit={chooseStudent}
         onRefresh={() => {
           setHistoryPage(0);
+          setSectionPage(0);
           setRefresh((value) => value + 1);
         }}
         studentId={studentId}
@@ -193,12 +195,18 @@ export default function App() {
                   id="search"
                   value={search}
                   placeholder="Ví dụ: web"
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setSectionPage(0);
+                  }}
                 />
                 <select
                   id="course-filter"
                   value={selectedCourse}
-                  onChange={(e) => setSelectedCourse(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedCourse(e.target.value);
+                    setSectionPage(0);
+                  }}
                   aria-label="Lọc theo học phần"
                 >
                   <option value="">Tất cả học phần</option>
@@ -212,7 +220,10 @@ export default function App() {
                   <input
                     type="checkbox"
                     checked={onlyAvailable}
-                    onChange={(e) => setOnlyAvailable(e.target.checked)}
+                    onChange={(e) => {
+                      setOnlyAvailable(e.target.checked);
+                      setSectionPage(0);
+                    }}
                   />
                   Chỉ hiện lớp còn chỗ
                 </label>
@@ -221,6 +232,10 @@ export default function App() {
                 rows={rows}
                 disabled={disabled}
                 onEnroll={(id) => changeEnrollment(id)}
+                page={sectionPage}
+                pageSize={SECTION_PAGE_SIZE}
+                onPrevPage={() => setSectionPage((p) => Math.max(0, p - 1))}
+                onNextPage={() => setSectionPage((p) => p + 1)}
               />
             </section>
 
