@@ -402,3 +402,103 @@ def list_courses(
         rows = connection.execute(text(sql), parameters).mappings().all()
 
     return [dict(row) for row in rows]
+
+
+# Tuần 5
+
+# ==========================================
+# Bài 1: API đọc lịch sử đăng ký học phần
+# ==========================================
+@app.get("/enrollment-events")
+def list_enrollment_events(
+    student_id: str | None = Query(default=None, description="Lọc theo mã SV"),
+    event_type: str | None = Query(default=None, description="CREATED hoặc CANCELLED"),
+    skip: int = Query(default=0, ge=0, description="Bỏ qua N bản ghi"),
+    limit: int = Query(default=20, ge=1, le=100, description="Lấy từ 1 đến 100 bản ghi"),
+) -> list[dict[str, object]]:
+    
+    # 1. Kiểm tra nếu người dùng truyền event_type không hợp lệ
+    valid_types = {"CREATED", "CANCELLED"}
+    if event_type is not None:
+        event_type = event_type.upper().strip()
+        if event_type not in valid_types:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"event_type không hợp lệ! Chỉ chấp nhận: {', '.join(valid_types)}"
+            )
+
+    # 2. Xây dựng câu lệnh SQL với bind parameters
+    sql = """
+        SELECT id, student_id, class_section_id, event_type, source, dataset, occurred_at
+        FROM enrollment_events
+        WHERE 1 = 1
+    """
+    params: dict[str, object] = {
+        "skip": skip,
+        "limit": limit
+    }
+
+    # Thêm điều kiện lọc nếu có truyền
+    if student_id:
+        sql += " AND student_id = :student_id"
+        params["student_id"] = student_id.strip()
+
+    if event_type:
+        sql += " AND event_type = :event_type"
+        params["event_type"] = event_type
+
+    # 3. Sắp xếp ổn định (occurred_at DESC, id DESC) và phân trang
+    sql += " ORDER BY occurred_at DESC, id DESC OFFSET :skip LIMIT :limit"
+
+    # 4. Thực thi và trả về kết quả
+    with engine.connect() as connection:
+        rows = connection.execute(text(sql), params).mappings().all()
+
+    return [dict(row) for row in rows]
+
+# ==========================================
+# Bài 2: Endpoint demo kiểm thử Rollback nhiều bảng
+# ==========================================
+@app.post("/demo/rollback-test", status_code=status.HTTP_400_BAD_REQUEST)
+def demo_rollback_test(payload: EnrollmentCreate) -> dict[str, str]:
+    """
+    Endpoint demo:
+    1. Cố ý INSERT vào enrollments (thành công)
+    2. Cố ý INSERT vào enrollment_events với event_type='INVALID_TYPE' (thất bại vì vi phạm CHECK constraint)
+    -> Kiểm chứng: transaction tự động rollback, bảng enrollments không lưu dữ liệu mới!
+    """
+    insert_enrollment_sql = """
+        INSERT INTO enrollments (student_id, class_section_id)
+        VALUES (:student_id, :class_section_id)
+    """
+    # Cố tình truyền 'INVALID_TYPE' để vi phạm CHECK constraint
+    invalid_event_sql = """
+        INSERT INTO enrollment_events
+        (student_id, class_section_id, event_type, source, dataset)
+        VALUES
+        (:student_id, :class_section_id, 'INVALID_TYPE', 'api', 'demo')
+    """
+    params = {
+        "student_id": payload.student_id,
+        "class_section_id": payload.class_section_id,
+    }
+
+    try:
+        with engine.begin() as connection:
+            # Bước 1: Thêm vào enrollments
+            connection.execute(text(insert_enrollment_sql), params)
+            
+            # Bước 2: Thêm vào enrollment_events với giá trị sai (Sẽ quăng lỗi IntegrityError ở đây)
+            connection.execute(text(invalid_event_sql), params)
+            
+    except IntegrityError as exc:
+        # Khi xảy ra ngoại lệ, engine.begin() tự động ROLLBACK hoàn toàn bước 1
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Rollback thanh cong! Buoc 2 bi loi vi pham constraint "
+                "nen du lieu buoc 1 (enrollments) da duoc rollback hoan toan."
+            ),
+        ) from exc
+
+    return {"message": "Neu chay toi day la that bai (vi le ra phai rollback)"}
