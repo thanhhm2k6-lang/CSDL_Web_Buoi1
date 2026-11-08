@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
 import { api } from "./api.js";
 import Notice from "./components/Notice.jsx";
+import StudentForm from "./components/StudentForm.jsx";
 import SectionTable from "./components/SectionTable.jsx";
 import EnrollmentList from "./components/EnrollmentList.jsx";
+import EventHistory from "./components/EventHistory.jsx";
+
+const HISTORY_PAGE_SIZE = 5;
 
 export default function App() {
   const [draftId, setDraftId] = useState("22000004");
@@ -10,7 +14,10 @@ export default function App() {
   const [courses, setCourses] = useState([]);
   const [sections, setSections] = useState([]);
   const [enrollments, setEnrollments] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [historyPage, setHistoryPage] = useState(0);
   const [search, setSearch] = useState("");
+  const [selectedCourse, setSelectedCourse] = useState("");
   const [onlyAvailable, setOnlyAvailable] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -50,6 +57,31 @@ export default function App() {
     return () => controller.abort();
   }, [studentId, refresh]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    const options = { signal: controller.signal };
+
+    async function loadHistory() {
+      try {
+        const historyData = await api(
+          `/enrollment-events?student_id=${encodeURIComponent(studentId)}&dataset=demo&skip=${historyPage * HISTORY_PAGE_SIZE}&limit=${HISTORY_PAGE_SIZE}`,
+          options,
+        );
+        if (!controller.signal.aborted) {
+          setEvents(historyData);
+        }
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          console.error("Không thể tải lịch sử:", err);
+          setEvents([]);
+        }
+      }
+    }
+
+    loadHistory();
+    return () => controller.abort();
+  }, [studentId, historyPage, refresh]);
+
   function chooseStudent(event) {
     event.preventDefault();
     const nextId = draftId.trim();
@@ -60,6 +92,7 @@ export default function App() {
     setNotice({ kind: "info", text: "" });
     setLoading(true);
     setStudentId(nextId);
+    setHistoryPage(0);
     setRefresh((value) => value + 1);
   }
 
@@ -113,7 +146,8 @@ export default function App() {
         `${row.class_id} ${row.course_code} ${row.course_name}`
           .toLowerCase()
           .includes(keyword) &&
-        (!onlyAvailable || row.remaining > 0),
+        (!onlyAvailable || row.remaining > 0) &&
+        (!selectedCourse || row.course_code === selectedCourse),
     );
 
   const disabled = loading || busy || Boolean(error);
@@ -131,80 +165,93 @@ export default function App() {
         Môi trường thực hành. Nhập mã sinh viên để thử dữ liệu, không phải đăng nhập.
       </p>
 
-      <section className="panel">
-        <h2>1. Chọn sinh viên</h2>
-        <form className="student-form" onSubmit={chooseStudent}>
-          <label htmlFor="student-id">Mã sinh viên</label>
-          <input
-            id="student-id"
-            value={draftId}
-            maxLength={8}
-            required
-            inputMode="numeric"
-            onChange={(e) => setDraftId(e.target.value)}
-            disabled={busy}
-          />
-          <button type="submit" disabled={busy}>
-            Xem đăng ký
-          </button>
-          <button
-            type="button"
-            className="secondary"
-            disabled={busy || loading}
-            onClick={() => setRefresh((value) => value + 1)}
-          >
-            Tải lại dữ liệu
-          </button>
-        </form>
-        <p className="muted">
-          Dữ liệu đang xem: <strong>{studentId}</strong>. Mã mẫu: 22000001–22000004.
-        </p>
-      </section>
+      <StudentForm
+        draftId={draftId}
+        onChangeDraftId={setDraftId}
+        onSubmit={chooseStudent}
+        onRefresh={() => {
+          setHistoryPage(0);
+          setRefresh((value) => value + 1);
+        }}
+        studentId={studentId}
+        busy={busy}
+        loading={loading}
+      />
 
       <Notice kind={notice.kind}>{notice.text}</Notice>
       <Notice kind="error">{error}</Notice>
       {loading && <Notice>Đang tải dữ liệu từ API...</Notice>}
 
       {!loading && !error && (
-        <div className="workspace">
-          <section className="panel">
-            <h2>2. Danh sách lớp học phần</h2>
-            <div className="filters">
-              <label htmlFor="search">Tìm lớp / học phần</label>
-              <input
-                id="search"
-                value={search}
-                placeholder="Ví dụ: web"
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              <label className="check">
+        <>
+          <div className="workspace">
+            <section className="panel">
+              <h2>2. Danh sách lớp học phần</h2>
+              <div className="filters">
+                <label htmlFor="search">Tìm lớp / học phần</label>
                 <input
-                  type="checkbox"
-                  checked={onlyAvailable}
-                  onChange={(e) => setOnlyAvailable(e.target.checked)}
+                  id="search"
+                  value={search}
+                  placeholder="Ví dụ: web"
+                  onChange={(e) => setSearch(e.target.value)}
                 />
-                Chỉ hiện lớp còn chỗ
-              </label>
-            </div>
-            <SectionTable
-              rows={rows}
-              disabled={disabled}
-              onEnroll={(id) => changeEnrollment(id)}
-            />
-          </section>
+                <select
+                  id="course-filter"
+                  value={selectedCourse}
+                  onChange={(e) => setSelectedCourse(e.target.value)}
+                  aria-label="Lọc theo học phần"
+                >
+                  <option value="">Tất cả học phần</option>
+                  {courses.map((course) => (
+                    <option key={course.code} value={course.code}>
+                      {course.code} — {course.name}
+                    </option>
+                  ))}
+                </select>
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={onlyAvailable}
+                    onChange={(e) => setOnlyAvailable(e.target.checked)}
+                  />
+                  Chỉ hiện lớp còn chỗ
+                </label>
+              </div>
+              <SectionTable
+                rows={rows}
+                disabled={disabled}
+                onEnroll={(id) => changeEnrollment(id)}
+              />
+            </section>
 
-          <section className="panel">
-            <h2>3. Lớp đã đăng ký</h2>
+            <section className="panel">
+              <h2>3. Lớp đã đăng ký</h2>
+              <p className="muted">
+                Sinh viên {studentId} · {enrollments.length} lớp
+              </p>
+              <EnrollmentList
+                rows={enrollments}
+                disabled={disabled}
+                onCancel={(id) => changeEnrollment(id, true)}
+              />
+            </section>
+          </div>
+
+          <section className="panel history-panel">
+            <h2>4. Lịch sử thao tác (Nhật ký demo)</h2>
             <p className="muted">
-              Sinh viên {studentId} · {enrollments.length} lớp
+              Lịch sử đăng ký và hủy đăng ký của sinh viên {studentId} (phân trang {HISTORY_PAGE_SIZE} bản ghi/trang)
             </p>
-            <EnrollmentList
-              rows={enrollments}
+            <EventHistory
+              events={events}
+              page={historyPage}
+              pageSize={HISTORY_PAGE_SIZE}
+              onPrevPage={() => setHistoryPage((p) => Math.max(0, p - 1))}
+              onNextPage={() => setHistoryPage((p) => p + 1)}
               disabled={disabled}
-              onCancel={(id) => changeEnrollment(id, true)}
             />
           </section>
-        </div>
+        </>
       )}
 
       <footer>

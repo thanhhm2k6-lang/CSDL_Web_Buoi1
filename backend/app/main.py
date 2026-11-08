@@ -425,6 +425,7 @@ def list_enrollment_events(
     event_type: str | None = Query(default=None, description="CREATED hoặc CANCELLED"),
     skip: int = Query(default=0, ge=0, description="Bỏ qua N bản ghi"),
     limit: int = Query(default=20, ge=1, le=100, description="Lấy từ 1 đến 100 bản ghi"),
+    dataset: str | None = Query(default=None, description="Lọc theo dataset (demo hoặc performance)"),
 ) -> list[dict[str, object]]:
     
     # 1. Kiểm tra nếu người dùng truyền event_type không hợp lệ
@@ -456,6 +457,10 @@ def list_enrollment_events(
     if event_type:
         sql += " AND event_type = :event_type"
         params["event_type"] = event_type
+
+    if dataset:
+        sql += " AND dataset = :dataset"
+        params["dataset"] = dataset.strip()
 
     # 3. Sắp xếp ổn định (occurred_at DESC, id DESC) và phân trang
     sql += " ORDER BY occurred_at DESC, id DESC OFFSET :skip LIMIT :limit"

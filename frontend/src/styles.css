@@ -80,12 +80,14 @@ label {
   font-weight: 600;
 }
 
-input:not([type="checkbox"]) {
+input:not([type="checkbox"]),
+select {
   border: 1px solid #9dacbd;
   border-radius: 7px;
   padding: 9px 11px;
   font: inherit;
   min-width: 0;
+  background: #fff;
 }
 
 input:focus,
@@ -210,6 +212,38 @@ small {
 .badge.full {
   background: #edf0f4;
   color: #5b6775;
+}
+
+.badge-create {
+  background: #e3f5ed;
+  color: #1d6147;
+}
+
+.badge-cancel {
+  background: #fff0ef;
+  color: #8e2820;
+}
+
+.history-panel {
+  margin-top: 18px;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.page-indicator {
+  font-size: 13px;
+  font-weight: 600;
+  color: #4a5d78;
+}
+
+.history-empty {
+  padding: 8px 0;
 }
 
 .muted {
