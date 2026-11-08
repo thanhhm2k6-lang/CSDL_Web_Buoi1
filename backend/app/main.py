@@ -1,4 +1,5 @@
 from __future__ import annotations
+from fastapi.middleware.cors import CORSMiddleware
 import logging
 from multiprocessing.dummy import connection
 from unittest import result
@@ -12,6 +13,15 @@ app = FastAPI(
     title="CourseHub API",
     version="0.3.0",
     description="API thuc hanh Buoi 3 - Co so du lieu Web va he thong thong tin",
+)
+
+# Buổi 5: chỉ cho phép frontend local gọi API qua trình duyệt.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
+    allow_headers=["Content-Type"],
 )
 
 @app.get("/")
@@ -80,18 +90,61 @@ def get_course(course_code: str) -> dict[str, object]:
 
 @app.get("/sections")
 def list_sections(
-    available_only: bool = False,
+    q: str | None = Query(
+        default=None,
+        description="Từ khóa tìm kiếm theo mã lớp, mã học phần hoặc tên học phần (ILIKE)"
+    ),
+    course_code: str | None = Query(
+        default=None,
+        description="Lọc chính xác theo mã học phần (ví dụ: INT2204)"
+    ),
+    available_only: bool = Query(
+        default=False,
+        description="Chỉ lấy các lớp học phần còn chỗ (remaining > 0)"
+    ),
+    skip: int = Query(
+        default=0,
+        ge=0,
+        description="Số bản ghi bỏ qua (OFFSET)"
+    ),
+    limit: int = Query(
+        default=20,
+        ge=1,
+        le=50,
+        description="Kích thước trang (LIMIT), tối đa 50 bản ghi"
+    ),
 ) -> list[dict[str, object]]:
-    sql = """
-    SELECT class_id, course_code, capacity, enrolled, remaining
-    FROM v_section_summary
     """
-    if available_only:
-        sql += " WHERE remaining > 0"
+    Tìm kiếm và phân trang danh sách lớp học phần tại CSDL (Database Search & Pagination).
+    - Thứ tự sắp xếp ổn định: ORDER BY v.class_id ASC (Primary Key).
+    """
+    sql = """
+    SELECT v.class_id, v.course_code, c.name AS course_name, v.capacity, v.enrolled, v.remaining
+    FROM v_section_summary AS v
+    JOIN courses AS c ON c.code = v.course_code
+    WHERE 1 = 1
+    """
+    params: dict[str, object] = {
+        "skip": skip,
+        "limit": limit,
+    }
 
-    sql += " ORDER BY class_id"
+    if available_only:
+        sql += " AND v.remaining > 0"
+
+    if course_code:
+        sql += " AND v.course_code = :course_code"
+        params["course_code"] = course_code.strip().upper()
+
+    if q:
+        sql += " AND (v.class_id ILIKE :q OR v.course_code ILIKE :q OR c.name ILIKE :q)"
+        params["q"] = f"%{q.strip()}%"
+
+    # Thứ tự sắp xếp ổn định bằng Khóa chính class_id kết hợp OFFSET và LIMIT
+    sql += " ORDER BY v.class_id ASC OFFSET :skip LIMIT :limit"
+
     with engine.connect() as connection:
-        rows = connection.execute(text(sql)).mappings().all()
+        rows = connection.execute(text(sql), params).mappings().all()
 
     return [dict(row) for row in rows]
 
@@ -404,7 +457,7 @@ def list_courses(
     return [dict(row) for row in rows]
 
 
-# Tuần 5
+# Tuần 4
 
 # ==========================================
 # Bài 1: API đọc lịch sử đăng ký học phần
@@ -415,6 +468,7 @@ def list_enrollment_events(
     event_type: str | None = Query(default=None, description="CREATED hoặc CANCELLED"),
     skip: int = Query(default=0, ge=0, description="Bỏ qua N bản ghi"),
     limit: int = Query(default=20, ge=1, le=100, description="Lấy từ 1 đến 100 bản ghi"),
+    dataset: str | None = Query(default=None, description="Lọc theo dataset (demo hoặc performance)"),
 ) -> list[dict[str, object]]:
     
     # 1. Kiểm tra nếu người dùng truyền event_type không hợp lệ
@@ -446,6 +500,10 @@ def list_enrollment_events(
     if event_type:
         sql += " AND event_type = :event_type"
         params["event_type"] = event_type
+
+    if dataset:
+        sql += " AND dataset = :dataset"
+        params["dataset"] = dataset.strip()
 
     # 3. Sắp xếp ổn định (occurred_at DESC, id DESC) và phân trang
     sql += " ORDER BY occurred_at DESC, id DESC OFFSET :skip LIMIT :limit"

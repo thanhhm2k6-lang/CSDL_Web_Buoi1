@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 820" width="1280" height="820" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+  <!-- Desktop Frame Background -->
+  <rect width="1280" height="820" fill="#f8fafc" />
+  
+  <!-- Outer Container Card -->
+  <rect x="40" y="30" width="1200" height="760" rx="12" fill="#ffffff" stroke="#e2e8f0" stroke-width="2" />
+  
+  <!-- 1. Header Area -->
+  <rect x="70" y="55" width="1140" height="50" rx="8" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1.5" />
+  <text x="90" y="87" font-size="20" font-weight="700" fill="#1e293b">CourseHub</text>
+  <text x="210" y="87" font-size="16" fill="#64748b">— Tra cứu và đăng ký lớp học phần</text>
+
+  <!-- 2. Student Selection Section -->
+  <rect x="70" y="125" width="1140" height="75" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" />
+  <text x="95" y="168" font-size="15" font-weight="600" fill="#334155">Mã sinh viên:</text>
+  
+  <!-- Input box -->
+  <rect x="200" y="142" width="180" height="40" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5" />
+  <text x="215" y="168" font-size="15" font-weight="600" fill="#0f172a">22000004</text>
+  
+  <!-- Button "Xem đăng ký" -->
+  <rect x="395" y="142" width="140" height="40" rx="6" fill="#2563eb" />
+  <text x="425" y="167" font-size="14" font-weight="600" fill="#ffffff">Xem đăng ký</text>
+  
+  <text x="555" y="167" font-size="14" fill="#64748b">(Nhập mã sinh viên để tải thông tin và quản lý đăng ký môn)</text>
+
+  <!-- Main Content Grid: Two Columns -->
+  <!-- 3. Left Panel: Section List -->
+  <rect x="70" y="220" width="670" height="440" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" />
+  <text x="95" y="255" font-size="17" font-weight="700" fill="#1e293b">Danh sách lớp học phần</text>
+  
+  <!-- Search box -->
+  <text x="95" y="295" font-size="14" fill="#475569">Tìm lớp / học phần:</text>
+  <rect x="240" y="275" width="280" height="32" rx="4" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" />
+  <text x="250" y="296" font-size="13" fill="#94a3b8">Ví dụ: WEB, INT, Cơ sở dữ liệu...</text>
+
+  <!-- Table -->
+  <!-- Table Header -->
+  <rect x="95" y="325" width="620" height="38" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" />
+  <text x="110" y="349" font-size="13" font-weight="700" fill="#475569">Lớp</text>
+  <text x="230" y="349" font-size="13" font-weight="700" fill="#475569">Học phần</text>
+  <text x="430" y="349" font-size="13" font-weight="700" fill="#475569">Còn</text>
+  <text x="560" y="349" font-size="13" font-weight="700" fill="#475569">Thao tác</text>
+
+  <!-- Table Row 1: WEB-01 (Còn chỗ -> Nút Đăng ký) -->
+  <rect x="95" y="363" width="620" height="46" fill="#ffffff" stroke="#e2e8f0" stroke-width="1" />
+  <text x="110" y="392" font-size="14" font-weight="600" fill="#0f172a">WEB-01</text>
+  <text x="230" y="392" font-size="14" fill="#334155">INT3306 (Lập trình Web)</text>
+  <text x="435" y="392" font-size="14" font-weight="600" fill="#16a34a">1</text>
+  <!-- Nút Đăng ký -->
+  <rect x="545" y="372" width="90" height="28" rx="4" fill="#2563eb" />
+  <text x="567" y="391" font-size="12" font-weight="600" fill="#ffffff">Đăng ký</text>
+
+  <!-- Table Row 2: DM-01 (Còn chỗ -> Nút Đăng ký) -->
+  <rect x="95" y="409" width="620" height="46" fill="#ffffff" stroke="#e2e8f0" stroke-width="1" />
+  <text x="110" y="438" font-size="14" font-weight="600" fill="#0f172a">DM-01</text>
+  <text x="230" y="438" font-size="14" fill="#334155">INT3305 (Khai phá dữ liệu)</text>
+  <text x="435" y="438" font-size="14" font-weight="600" fill="#16a34a">1</text>
+  <!-- Nút Đăng ký -->
+  <rect x="545" y="418" width="90" height="28" rx="4" fill="#2563eb" />
+  <text x="567" y="437" font-size="12" font-weight="600" fill="#ffffff">Đăng ký</text>
+
+  <!-- Table Row 3: RACE-01 (Hết chỗ -> Nút Disable Hết chỗ - Bước 3) -->
+  <rect x="95" y="455" width="620" height="46" fill="#fef2f2" stroke="#fee2e2" stroke-width="1" />
+  <text x="110" y="484" font-size="14" font-weight="600" fill="#991b1b">RACE-01</text>
+  <text x="230" y="484" font-size="14" fill="#991b1b">INT3306 (Lớp kiểm thử)</text>
+  <text x="435" y="484" font-size="14" font-weight="700" fill="#dc2626">0</text>
+  <!-- Nút Hết chỗ disabled -->
+  <rect x="545" y="464" width="90" height="28" rx="4" fill="#cbd5e1" />
+  <text x="567" y="483" font-size="12" font-weight="600" fill="#64748b">Hết chỗ</text>
+
+
+  <!-- 4. Right Panel: Enrolled List -->
+  <rect x="760" y="220" width="450" height="440" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" />
+  <text x="785" y="255" font-size="17" font-weight="700" fill="#1e293b">Lớp đã đăng ký</text>
+  <text x="785" y="280" font-size="13" fill="#64748b">Sinh viên: 22000004 (Đã đăng ký 1 môn)</text>
+
+  <!-- Enrolled Item 1 -->
+  <rect x="785" y="305" width="400" height="70" rx="6" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1.5" />
+  <text x="800" y="333" font-size="14" font-weight="700" fill="#1e293b">WEB-01</text>
+  <text x="865" y="333" font-size="13" fill="#64748b">— Lập trình Web</text>
+  <text x="800" y="357" font-size="12" fill="#94a3b8">Đăng ký lúc: 08/11/2026 10:30</text>
+  <!-- Nút Hủy đăng ký -->
+  <rect x="1080" y="322" width="90" height="32" rx="4" fill="#ef4444" />
+  <text x="1092" y="343" font-size="12" font-weight="600" fill="#ffffff">Hủy đăng ký</text>
+
+
+  <!-- 5. Notice / Banner Section (Bottom) - Trạng thái thành công & Lỗi -->
+  <rect x="70" y="680" width="1140" height="50" rx="8" fill="#ecfdf5" stroke="#a7f3d0" stroke-width="1.5" />
+  <text x="95" y="711" font-size="14" font-weight="600" fill="#065f46">✓ Đăng ký thành công lớp WEB-01 cho sinh viên 22000004</text>
+  <text x="1020" y="711" font-size="13" fill="#047857">(HTTP 201 Created)</text>
+</svg>
+

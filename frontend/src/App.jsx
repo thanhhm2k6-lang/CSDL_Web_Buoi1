@@ -1,0 +1,277 @@
+import { useEffect, useState } from "react";
+import { api } from "./api.js";
+import Notice from "./components/Notice.jsx";
+import StudentForm from "./components/StudentForm.jsx";
+import SectionTable from "./components/SectionTable.jsx";
+import EnrollmentList from "./components/EnrollmentList.jsx";
+import EventHistory from "./components/EventHistory.jsx";
+
+const HISTORY_PAGE_SIZE = 5;
+const SECTION_PAGE_SIZE = 5;
+
+export default function App() {
+  const [draftId, setDraftId] = useState("22000004");
+  const [studentId, setStudentId] = useState("22000004");
+  const [courses, setCourses] = useState([]);
+  const [sections, setSections] = useState([]);
+  const [sectionPage, setSectionPage] = useState(0);
+  const [enrollments, setEnrollments] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [historyPage, setHistoryPage] = useState(0);
+  const [search, setSearch] = useState("");
+  const [selectedCourse, setSelectedCourse] = useState("");
+  const [onlyAvailable, setOnlyAvailable] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState({ kind: "info", text: "" });
+  const [refresh, setRefresh] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const options = { signal: controller.signal };
+
+    async function loadData() {
+      setLoading(true);
+      setError("");
+      try {
+        const queryParams = new URLSearchParams();
+        if (search.trim()) queryParams.set("q", search.trim());
+        if (selectedCourse) queryParams.set("course_code", selectedCourse);
+        if (onlyAvailable) queryParams.set("available_only", "true");
+        queryParams.set("skip", String(sectionPage * SECTION_PAGE_SIZE));
+        queryParams.set("limit", String(SECTION_PAGE_SIZE));
+
+        const [courseData, sectionData, enrollmentData] = await Promise.all([
+          api("/courses", options),
+          api(`/sections?${queryParams.toString()}`, options),
+          api(`/students/${encodeURIComponent(studentId)}/enrollments`, options),
+        ]);
+        if (controller.signal.aborted) return;
+        setCourses(courseData);
+        setSections(sectionData);
+        setEnrollments(enrollmentData);
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        setError(err.message);
+        setCourses([]);
+        setSections([]);
+        setEnrollments([]);
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }
+
+    loadData();
+    return () => controller.abort();
+  }, [studentId, search, selectedCourse, onlyAvailable, sectionPage, refresh]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const options = { signal: controller.signal };
+
+    async function loadHistory() {
+      try {
+        const historyData = await api(
+          `/enrollment-events?student_id=${encodeURIComponent(studentId)}&dataset=demo&skip=${historyPage * HISTORY_PAGE_SIZE}&limit=${HISTORY_PAGE_SIZE}`,
+          options,
+        );
+        if (!controller.signal.aborted) {
+          setEvents(historyData);
+        }
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          console.error("Không thể tải lịch sử:", err);
+          setEvents([]);
+        }
+      }
+    }
+
+    loadHistory();
+    return () => controller.abort();
+  }, [studentId, historyPage, refresh]);
+
+  function chooseStudent(event) {
+    event.preventDefault();
+    const nextId = draftId.trim();
+    if (!/^\d{8}$/.test(nextId)) {
+      setNotice({ kind: "error", text: "Mã demo phải gồm 8 chữ số." });
+      return;
+    }
+    setNotice({ kind: "info", text: "" });
+    setLoading(true);
+    setStudentId(nextId);
+    setHistoryPage(0);
+    setSectionPage(0);
+    setRefresh((value) => value + 1);
+  }
+
+  async function changeEnrollment(sectionId, cancel = false) {
+    if (busy || loading || error) return;
+    if (cancel && !window.confirm(`Hủy đăng ký lớp ${sectionId}?`)) return;
+
+    setBusy(true);
+    setNotice({ kind: "info", text: "Đang gửi yêu cầu..." });
+    try {
+      if (cancel) {
+        await api(
+          `/enrollments/${encodeURIComponent(studentId)}/${encodeURIComponent(sectionId)}`,
+          { method: "DELETE" },
+        );
+      } else {
+        await api("/enrollments", {
+          method: "POST",
+          body: { student_id: studentId, class_section_id: sectionId },
+        });
+      }
+      setNotice({
+        kind: "success",
+        text: cancel
+          ? `Đã hủy đăng ký ${sectionId}.`
+          : `Đăng ký ${sectionId} thành công.`,
+      });
+    } catch (err) {
+      setNotice({ kind: "error", text: err.message });
+    } finally {
+      // Đọc lại CSDL kể cả sau lỗi; không tự cộng/trừ số chỗ ở giao diện.
+      setLoading(true);
+      setRefresh((value) => value + 1);
+      setBusy(false);
+    }
+  }
+
+  const rows = sections.map((section) => ({
+    ...section,
+    course_name:
+      section.course_name ??
+      courses.find((course) => course.code === section.course_code)?.name ??
+      section.course_code,
+    registered: enrollments.some(
+      (item) => item.class_section_id === section.class_id,
+    ),
+  }));
+
+  const disabled = loading || busy || Boolean(error);
+
+  return (
+    <main className="container">
+      <header className="hero">
+        <p className="eyebrow">CSDL WEB VÀ HỆ THỐNG THÔNG TIN · BUỔI 5</p>
+        <h1>CourseHub</h1>
+        <p>Tra cứu và đăng ký lớp học phần</p>
+        <span className="chip">React → FastAPI → PostgreSQL</span>
+      </header>
+
+      <p className="demo-note">
+        Môi trường thực hành. Nhập mã sinh viên để thử dữ liệu, không phải đăng nhập.
+      </p>
+
+      <StudentForm
+        draftId={draftId}
+        onChangeDraftId={setDraftId}
+        onSubmit={chooseStudent}
+        onRefresh={() => {
+          setHistoryPage(0);
+          setSectionPage(0);
+          setRefresh((value) => value + 1);
+        }}
+        studentId={studentId}
+        busy={busy}
+        loading={loading}
+      />
+
+      <Notice kind={notice.kind}>{notice.text}</Notice>
+      <Notice kind="error">{error}</Notice>
+      {loading && <Notice>Đang tải dữ liệu từ API...</Notice>}
+
+      {!loading && !error && (
+        <>
+          <div className="workspace">
+            <section className="panel">
+              <h2>2. Danh sách lớp học phần</h2>
+              <div className="filters">
+                <label htmlFor="search">Tìm lớp / học phần</label>
+                <input
+                  id="search"
+                  value={search}
+                  placeholder="Ví dụ: web"
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setSectionPage(0);
+                  }}
+                />
+                <select
+                  id="course-filter"
+                  value={selectedCourse}
+                  onChange={(e) => {
+                    setSelectedCourse(e.target.value);
+                    setSectionPage(0);
+                  }}
+                  aria-label="Lọc theo học phần"
+                >
+                  <option value="">Tất cả học phần</option>
+                  {courses.map((course) => (
+                    <option key={course.code} value={course.code}>
+                      {course.code} — {course.name}
+                    </option>
+                  ))}
+                </select>
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={onlyAvailable}
+                    onChange={(e) => {
+                      setOnlyAvailable(e.target.checked);
+                      setSectionPage(0);
+                    }}
+                  />
+                  Chỉ hiện lớp còn chỗ
+                </label>
+              </div>
+              <SectionTable
+                rows={rows}
+                disabled={disabled}
+                onEnroll={(id) => changeEnrollment(id)}
+                page={sectionPage}
+                pageSize={SECTION_PAGE_SIZE}
+                onPrevPage={() => setSectionPage((p) => Math.max(0, p - 1))}
+                onNextPage={() => setSectionPage((p) => p + 1)}
+              />
+            </section>
+
+            <section className="panel">
+              <h2>3. Lớp đã đăng ký</h2>
+              <p className="muted">
+                Sinh viên {studentId} · {enrollments.length} lớp
+              </p>
+              <EnrollmentList
+                rows={enrollments}
+                disabled={disabled}
+                onCancel={(id) => changeEnrollment(id, true)}
+              />
+            </section>
+          </div>
+
+          <section className="panel history-panel">
+            <h2>4. Lịch sử thao tác (Nhật ký demo)</h2>
+            <p className="muted">
+              Lịch sử đăng ký và hủy đăng ký của sinh viên {studentId} (phân trang {HISTORY_PAGE_SIZE} bản ghi/trang)
+            </p>
+            <EventHistory
+              events={events}
+              page={historyPage}
+              pageSize={HISTORY_PAGE_SIZE}
+              onPrevPage={() => setHistoryPage((p) => Math.max(0, p - 1))}
+              onNextPage={() => setHistoryPage((p) => p + 1)}
+              disabled={disabled}
+            />
+          </section>
+        </>
+      )}
+
+      <footer>
+        Số chỗ và đăng ký được đọc từ API; Backend quyết định tính hợp lệ.
+      </footer>
+    </main>
+  );
+}
