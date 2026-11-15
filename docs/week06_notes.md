@@ -50,4 +50,22 @@
    - *Phần đã dùng & Xác minh:* Chạy `curl http://127.0.0.1:8000/health` nhận được `{"status":"ok","database":"connected"}` và giữ nguyên toàn bộ dữ liệu CSDL ban đầu.
 
 ## Bài tập tự thực hành (Mục XVI.3)
-- **Bài 1:** Bổ sung `assert "get" in paths["/sections"]` vào hàm `test_enrollment_methods_are_registered` trong tệp `backend/tests/test_openapi_contract.py`. Đã kiểm thử `pytest backend/tests -q` thành công 100%.
+- **Bài 1 - Mở rộng kiểm thử OpenAPI Contract:**
+  - Bổ sung `assert "get" in paths["/sections"]` vào hàm `test_enrollment_methods_are_registered` trong tệp `backend/tests/test_openapi_contract.py`.
+  - *Thực nghiệm làm đỏ test:* Cố tình đổi thành `assert "patch" in paths["/sections"]` $\rightarrow$ `pytest` báo lỗi ngay lập tức `AssertionError: assert 'patch' in ['get']`.
+  - *Khôi phục:* Đưa về method `get` $\rightarrow$ `pytest backend/tests -q` vượt qua 100% (2 passed).
+
+- **Bài 2 - Tạo lỗi cấu hình có kiểm soát & Bằng chứng log:**
+  - *Lỗi 1 (Sai DB Host):* Đặt `DB_HOST=127.0.0.1` trong `.env.docker`. Container Backend không thể kết nối tới PostgreSQL máy thật. Endpoint `http://127.0.0.1:8000/health` trả về `HTTP 503 Service Unavailable`, `docker compose logs backend` xuất hiện lỗi `ConnectionRefusedError: [Errno 111] Connection refused`. Cách sửa: Khôi phục `DB_HOST=host.docker.internal`.
+  - *Lỗi 2 (Sai API Base URL):* Đặt `VITE_API_BASE_URL=http://127.0.0.1:8000`. Khi mở trang web ở `http://localhost:8080`, trình duyệt gọi trực tiếp cổng 8000 $\rightarrow$ Tab Console báo đỏ lỗi vi phạm CORS: `blocked by CORS policy: No 'Access-Control-Allow-Origin' header`. Cách sửa: Khôi phục `VITE_API_BASE_URL=/api` để đi qua Reverse Proxy Nginx.
+
+- **Bài 3 - Tái lập môi trường dự án với Docker Compose:**
+  - Đã đóng gói toàn bộ Frontend + Backend trong tệp `compose.yaml` ở thư mục gốc.
+  - Thành viên khác trong nhóm có thể dựng lại toàn bộ ứng dụng chỉ với 3 bước:
+    1. `git checkout week06-docker-ci`
+    2. Sao chép cấu hình: `cp backend/.env.docker.example backend/.env.docker`
+    3. Chạy hệ thống: `docker compose up --build` $\rightarrow$ Mở `http://localhost:8080`.
+
+- **Bài 4 - Mở rộng CI với Step có giá trị thực tế (Frontend Lint):**
+  - Đã bổ sung step `Lint frontend: npm run lint` (sử dụng công cụ `oxlint`) vào job `frontend` trong `.github/workflows/ci.yml`.
+  - *Giá trị thực tế:* Kiểm tra tĩnh toàn bộ mã nguồn React/JSX trong 75ms trên runner, phát hiện sớm các lỗi cú pháp, import sai tệp hoặc biến thừa trước khi chạy build, giúp tiết kiệm thời gian và tài nguyên CI.
